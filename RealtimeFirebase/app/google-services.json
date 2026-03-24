@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "895428540651",
+    "project_id": "createmessage2026",
+    "storage_bucket": "createmessage2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:895428540651:android:7eb1813a788343309fa6ae",
+        "android_client_info": {
+          "package_name": "com.example.realtimefirebase"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUUSi8ec6B7pCEDP8485gCerm-6OZynDk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
