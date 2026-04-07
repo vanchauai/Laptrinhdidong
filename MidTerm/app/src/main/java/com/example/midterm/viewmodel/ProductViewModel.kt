@@ -31,6 +31,9 @@ class ProductViewModel : ViewModel() {
     private val _userState = MutableStateFlow(auth.currentUser != null)
     val userState: StateFlow<Boolean> = _userState.asStateFlow()
 
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -39,16 +42,26 @@ class ProductViewModel : ViewModel() {
 
     init {
         auth.addAuthStateListener { firebaseAuth ->
-            _userState.value = firebaseAuth.currentUser != null
-            if (firebaseAuth.currentUser != null) {
-                fetchProducts()
+            val user = firebaseAuth.currentUser
+            _userState.value = user != null
+            if (user != null) {
+                db.collection("users").document(user.uid).get()
+                    .addOnSuccessListener { doc ->
+                        _isAdmin.value = doc.getString("role") == "admin" || user.email?.contains("admin", ignoreCase = true) == true
+                    }
+                    .addOnFailureListener {
+                        _isAdmin.value = user.email?.contains("admin", ignoreCase = true) == true
+                    }
+                retrieveProductList()
             } else {
+                _userState.value = false
+                _isAdmin.value = false
                 _products.value = emptyList()
             }
         }
     }
 
-    fun login(email: String, pass: String) {
+    fun executeSignIn(email: String, pass: String) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -62,11 +75,19 @@ class ProductViewModel : ViewModel() {
         }
     }
 
-    fun register(email: String, pass: String) {
+    fun executeSignUp(email: String, pass: String) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                auth.createUserWithEmailAndPassword(email, pass).await()
+                val result = auth.createUserWithEmailAndPassword(email, pass).await()
+                result.user?.let { user ->
+                    val role = if (email.contains("admin", ignoreCase = true)) "admin" else "user"
+                    val userData = hashMapOf(
+                        "email" to email,
+                        "role" to role
+                    )
+                    db.collection("users").document(user.uid).set(userData).await()
+                }
                 _errorMessage.value = "Register success!"
             } catch (e: Exception) {
                 _errorMessage.value = e.message
@@ -76,11 +97,11 @@ class ProductViewModel : ViewModel() {
         }
     }
 
-    fun logout() {
+    fun performSignOut() {
         auth.signOut()
     }
 
-    private fun fetchProducts() {
+    private fun retrieveProductList() {
         db.collection("products")
             .orderBy("name", Query.Direction.ASCENDING)
             .addSnapshotListener { value, error ->
@@ -95,14 +116,14 @@ class ProductViewModel : ViewModel() {
             }
     }
 
-    fun addOrUpdateProduct(context: Context, product: Product, uri: Uri?, isUpdate: Boolean, onSuccess: () -> Unit) {
+    fun processProductStorage(context: Context, product: Product, uri: Uri?, isUpdate: Boolean, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 var finalUrl = product.imageUrl
                 if (uri != null) {
                     // Chuyển sang Base64 thay vì upload Storage
-                    finalUrl = uriToBase64(context, uri) ?: product.imageUrl
+                    finalUrl = convertMediaToBase64(context, uri) ?: product.imageUrl
                 }
 
                 val docRef = if (isUpdate) {
@@ -123,7 +144,7 @@ class ProductViewModel : ViewModel() {
         }
     }
 
-    private suspend fun uriToBase64(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+    private suspend fun convertMediaToBase64(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
         try {
             val inputStream = context.contentResolver.openInputStream(uri)
             val originalBitmap = BitmapFactory.decodeStream(inputStream)
@@ -158,7 +179,7 @@ class ProductViewModel : ViewModel() {
         }
     }
 
-    fun deleteProduct(productId: String) {
+    fun removeProductRecord(productId: String) {
         viewModelScope.launch {
             try {
                 db.collection("products").document(productId).delete().await()
@@ -169,7 +190,7 @@ class ProductViewModel : ViewModel() {
         }
     }
 
-    fun clearError() {
+    fun resetStatusMessage() {
         _errorMessage.value = null
     }
 

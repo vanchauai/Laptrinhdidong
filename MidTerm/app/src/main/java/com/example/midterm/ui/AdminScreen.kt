@@ -33,8 +33,9 @@ import com.example.midterm.viewmodel.ProductViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminScreen(viewModel: ProductViewModel, onLogout: () -> Unit) {
+fun ProductManagementScreen(viewModel: ProductViewModel, onLogout: () -> Unit) {
     val products by viewModel.products.collectAsState()
+    val isAdmin by viewModel.isAdmin.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val context = LocalContext.current
@@ -50,7 +51,7 @@ fun AdminScreen(viewModel: ProductViewModel, onLogout: () -> Unit) {
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? -> imageUri = uri }
 
-    fun clearForm() {
+    fun wipeInputForm() {
         name = ""
         type = ""
         price = ""
@@ -62,10 +63,10 @@ fun AdminScreen(viewModel: ProductViewModel, onLogout: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Quản lý sản phẩm") },
+                title = { Text(if (isAdmin) "Quản lý sản phẩm" else "Danh sách sản phẩm") },
                 actions = {
                     IconButton(onClick = {
-                        viewModel.logout()
+                        viewModel.performSignOut()
                         onLogout()
                     }) {
                         Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
@@ -80,68 +81,70 @@ fun AdminScreen(viewModel: ProductViewModel, onLogout: () -> Unit) {
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Text("Dữ liệu sản phẩm", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Spacer(modifier = Modifier.height(8.dp))
+            if (isAdmin) {
+                Text("Dữ liệu sản phẩm", style = MaterialTheme.typography.titleLarge, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Tên sản phẩm") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            OutlinedTextField(
-                value = type,
-                onValueChange = { type = it },
-                label = { Text("Loại sản phẩm") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            OutlinedTextField(
-                value = price,
-                onValueChange = { price = it },
-                label = { Text("Giá") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
-                    .clickable { imagePickerLauncher.launch("image/*") }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = imageUri?.lastPathSegment ?: if(editingImageUrl.isNotEmpty()) "Có sẵn một ảnh" else "Chọn hình ảnh...",
-                    color = if (imageUri == null && editingImageUrl.isEmpty()) Color.Gray else Color.Black
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Tên sản phẩm") },
+                    modifier = Modifier.fillMaxWidth()
                 )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = type,
+                    onValueChange = { type = it },
+                    label = { Text("Loại sản phẩm") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { price = it },
+                    label = { Text("Giá") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
 
-            Button(
-                onClick = {
-                    val pPrice = price.toLongOrNull() ?: 0L
-                    val product = Product(
-                        id = selectedProductId ?: "",
-                        name = name,
-                        type = type,
-                        price = pPrice,
-                        imageUrl = editingImageUrl
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color.Gray, RoundedCornerShape(4.dp))
+                        .clickable { imagePickerLauncher.launch("image/*") }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = imageUri?.lastPathSegment ?: if(editingImageUrl.isNotEmpty()) "Có sẵn một ảnh" else "Chọn hình ảnh...",
+                        color = if (imageUri == null && editingImageUrl.isEmpty()) Color.Gray else Color.Black
                     )
-                    viewModel.addOrUpdateProduct(context, product, imageUri, selectedProductId != null) {
-                        clearForm()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
-                enabled = !isLoading
-            ) {
-                Text(if (selectedProductId == null) "THÊM SẢN PHẨM" else "CẬP NHẬT SẢN PHẨM")
-            }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val pPrice = price.toLongOrNull() ?: 0L
+                        val product = Product(
+                            id = selectedProductId ?: "",
+                            name = name,
+                            type = type,
+                            price = pPrice,
+                            imageUrl = editingImageUrl
+                        )
+                        viewModel.processProductStorage(context, product, imageUri, selectedProductId != null) {
+                            wipeInputForm()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                    enabled = !isLoading
+                ) {
+                    Text(if (selectedProductId == null) "THÊM SẢN PHẨM" else "CẬP NHẬT SẢN PHẨM")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
 
             errorMessage?.let {
@@ -149,7 +152,7 @@ fun AdminScreen(viewModel: ProductViewModel, onLogout: () -> Unit) {
                 Text(text = it, color = MaterialTheme.colorScheme.error)
                 LaunchedEffect(it) {
                     kotlinx.coroutines.delay(3000)
-                    viewModel.clearError()
+                    viewModel.resetStatusMessage()
                 }
             }
 
@@ -212,19 +215,21 @@ fun AdminScreen(viewModel: ProductViewModel, onLogout: () -> Unit) {
                                 Text("Giá sp: ${item.price}", style = MaterialTheme.typography.bodyMedium)
                                 Text("Loại sp: ${item.type}", style = MaterialTheme.typography.bodyMedium)
                             }
-                            Column {
-                                IconButton(onClick = {
-                                    name = item.name
-                                    type = item.type
-                                    price = item.price.toString()
-                                    selectedProductId = item.id
-                                    editingImageUrl = item.imageUrl
-                                    imageUri = null
-                                }) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFFFFB300))
-                                }
-                                IconButton(onClick = { viewModel.deleteProduct(item.id) }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                            if (isAdmin) {
+                                Column {
+                                    IconButton(onClick = {
+                                        name = item.name
+                                        type = item.type
+                                        price = item.price.toString()
+                                        selectedProductId = item.id
+                                        editingImageUrl = item.imageUrl
+                                        imageUri = null
+                                    }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFFFFB300))
+                                    }
+                                    IconButton(onClick = { viewModel.removeProductRecord(item.id) }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                    }
                                 }
                             }
                         }

@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 import com.example.midterm.viewmodel.ProductViewModel
 
 @Composable
-fun AuthScreen(viewModel: ProductViewModel, onNavigateToAdmin: () -> Unit) {
+fun UserAuthenticationScreen(viewModel: ProductViewModel, onNavigateToAdmin: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -57,10 +57,10 @@ fun AuthScreen(viewModel: ProductViewModel, onNavigateToAdmin: () -> Unit) {
             CircularProgressIndicator()
         } else {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(onClick = { viewModel.login(email, password) }) {
+                Button(onClick = { viewModel.executeSignIn(email, password) }) {
                     Text("Đăng nhập")
                 }
-                OutlinedButton(onClick = { viewModel.register(email, password) }) {
+                OutlinedButton(onClick = { viewModel.executeSignUp(email, password) }) {
                     Text("Đăng ký")
                 }
             }
@@ -71,7 +71,7 @@ fun AuthScreen(viewModel: ProductViewModel, onNavigateToAdmin: () -> Unit) {
             Text(text = it, color = MaterialTheme.colorScheme.error)
             LaunchedEffect(it) {
                 kotlinx.coroutines.delay(3000)
-                viewModel.clearError()
+                viewModel.resetStatusMessage()
             }
         }
     }
